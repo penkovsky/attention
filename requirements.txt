@@ -1,0 +1,5 @@
+gymnasium[box2d]==0.29.1
+stable_baselines3==2.3.2
+tensorboard==2.18.0
+tyro==0.9.11
+moviepy
