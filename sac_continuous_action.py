@@ -161,16 +161,17 @@ class Actor(nn.Module):
         )
 
     def forward(self, x):
-        x, attn_w1 = self.attention1(x)
+        x1, attn_w1 = self.attention1(x)
+        x = x1
         mean = self.fc_mean(x)
         log_std = self.fc_logstd(x)
         log_std = torch.tanh(log_std)
         log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)  # From SpinUp / Denis Yarats
 
-        return mean, log_std, [attn_w1]
+        return mean, log_std, [attn_w1], [x1]
 
     def get_action_(self, x):
-        mean, log_std, attn_ws = self(x)
+        mean, log_std, attn_ws, x_ = self(x)
         std = log_std.exp()
         normal = torch.distributions.Normal(mean, std)
         x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
@@ -181,10 +182,10 @@ class Actor(nn.Module):
         log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
         mean = torch.tanh(mean) * self.action_scale + self.action_bias
-        return action, log_prob, mean, attn_ws
+        return action, log_prob, mean, attn_ws, x_
 
     def get_action(self, x):
-        action, log_prob, mean, _ = self.get_action_(x)
+        action, log_prob, mean, _, _ = self.get_action_(x)
         return action, log_prob, mean
 
 
@@ -394,12 +395,13 @@ def evaluate(args, device):
     returns = []
     for ep in range(args.n_eval_episodes):
         for i in range(1000):
-            actions, _, _, ws = actor.get_action_(torch.Tensor(obs).to(device))
-            w = ws[0].squeeze(0).cpu().detach().numpy()
-            o = obs[0]
+            actions, _, _, ws, x_ = actor.get_action_(torch.Tensor(obs).to(device))
 
             if args.capture_video:
-                visualize_weights(w, o, labels=['x', 'y', 'vel_x', 'vel_y', 'angl', 'omega', 'gnd1', 'gnd2'])
+                w = ws[0].squeeze(0).cpu().detach().numpy()
+                o = obs[0]
+                x1 = x_[0].squeeze(0).cpu().detach().numpy()
+                visualize_weights(w, o, x1, labels=['x', 'y', 'vel_x', 'vel_y', 'angl', 'omega', 'gnd1', 'gnd2'])
                 plt.savefig(f"videos/{ep}_{i:03d}.png")
                 plt.close()
 
