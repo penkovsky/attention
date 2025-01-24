@@ -7,6 +7,8 @@ import time
 from dataclasses import dataclass
 
 import gymnasium as gym
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 import numpy as np
 import torch
 import torch.nn as nn
@@ -15,6 +17,7 @@ import torch.optim as optim
 import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
+from typing import Any, Callable, List, SupportsFloat
 
 from viz import visualize_weights
 
@@ -71,11 +74,49 @@ class Args:
     """automatic tuning of the entropy coefficient"""
 
 
+class RecordVideoWithPlots(gym.wrappers.RecordVideo):
+    def __init__( self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _capture_frame(self):
+        # Don't do this
+        global dta1
+
+        assert self.recording, "Cannot capture a frame, recording wasn't started."
+
+        frame = self.env.render()
+        if isinstance(frame, List):
+            if len(frame) == 0:  # render was called
+                return
+            self.render_history += frame
+            frame = frame[-1]
+
+        if dta1:
+            w, o, x1 = dta1
+            fig = visualize_weights(w, o, x1, labels=None)
+            # Create a canvas
+            canvas = FigureCanvasAgg(fig)
+            # Draw the figure on the canvas
+            canvas.draw()
+            # Convert the canvas to a NumPy array
+            image_array = np.array(canvas.renderer._renderer)[:, :, :3]  # Select only RGB channels
+            frame = np.concatenate([frame, image_array], axis=0)
+            plt.close()
+
+        if isinstance(frame, np.ndarray):
+            self.recorded_frames.append(frame)
+        else:
+            self.stop_recording()
+            logger.warn(
+                f"Recording stopped: expected type of frame returned by render to be a numpy array, got instead {type(frame)}."
+            )
+
+
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+            env = RecordVideoWithPlots(env, f"videos/{run_name}")
         else:
             env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -375,7 +416,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
 def evaluate(args, device):
     """ Load agent and evaluate its performance """
-    import matplotlib.pyplot as plt
+    global dta1
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -396,17 +437,14 @@ def evaluate(args, device):
     for ep in range(args.n_eval_episodes):
         for i in range(1000):
             actions, _, _, ws, x_ = actor.get_action_(torch.Tensor(obs).to(device))
+            actions = actions.detach().cpu().numpy()
 
             if args.capture_video:
                 w = ws[0].squeeze(0).cpu().detach().numpy()
                 o = obs[0]
                 x1 = x_[0].squeeze(0).cpu().detach().numpy()
-                visualize_weights(w, o, x1, labels=None)
-                # visualize_weights(w, o, x1, labels=['x', 'y', 'vel_x', 'vel_y', 'angl', 'omega', 'gnd1', 'gnd2'])
-                plt.savefig(f"videos/{ep}_{i:03d}.png")
-                plt.close()
+                dta1 = (w, o, x1)
 
-            actions = actions.detach().cpu().numpy()
             obs, rewards, terminations, truncations, infos = envs.step(actions)
 
             if "final_info" in infos:
@@ -436,6 +474,7 @@ def test1():
 
 if __name__ == "__main__":
     import stable_baselines3 as sb3
+    dta1 = None
 
     if sb3.__version__ < "2.0":
         raise ValueError(

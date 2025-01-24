@@ -67,6 +67,8 @@ def visualize_weights(weight_matrix, vin, vout, labels=None):
     ax3_.set_yticks([])
     ax3_.set_ylabel("Out", rotation=0, labelpad=15)
 
+    return fig
+
 
 if __name__ == "__main__":
     # Example usage
