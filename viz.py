@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def visualize_weights(weight_matrix, vin, vout, labels=None):
+    labels = list(range(weight_matrix.shape[0])) if labels is None else labels
     vector = np.array(range(weight_matrix.shape[0]))
 
     # Ensure vector is a row vector
@@ -38,6 +39,9 @@ def visualize_weights(weight_matrix, vin, vout, labels=None):
     for ax in [ax1, ax2, ax3]:
         # Horizontal alignment
         ax.set_xlim([-0.2, len(vin) - 0.8])
+
+        # No ticks for this visualization
+        ax.set_xticks([])
 
     for i, row_weights in enumerate(weight_matrix):
         # Create lines with intensities based on weights

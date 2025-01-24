@@ -401,7 +401,8 @@ def evaluate(args, device):
                 w = ws[0].squeeze(0).cpu().detach().numpy()
                 o = obs[0]
                 x1 = x_[0].squeeze(0).cpu().detach().numpy()
-                visualize_weights(w, o, x1, labels=['x', 'y', 'vel_x', 'vel_y', 'angl', 'omega', 'gnd1', 'gnd2'])
+                visualize_weights(w, o, x1, labels=None)
+                # visualize_weights(w, o, x1, labels=['x', 'y', 'vel_x', 'vel_y', 'angl', 'omega', 'gnd1', 'gnd2'])
                 plt.savefig(f"videos/{ep}_{i:03d}.png")
                 plt.close()
 
