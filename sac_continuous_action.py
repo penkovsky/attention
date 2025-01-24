@@ -91,6 +91,12 @@ class RecordVideoWithPlots(gym.wrappers.RecordVideo):
             self.render_history += frame
             frame = frame[-1]
 
+        # The first frame has a different size. We need images of equal sizes
+        # for the movie
+        for i in range(len(self.recorded_frames)):
+            if self.recorded_frames[i].shape[0] != 700:
+                del self.recorded_frames[i]
+
         if dta1:
             w, o, x1 = dta1
             fig = visualize_weights(w, o, x1, labels=None)
