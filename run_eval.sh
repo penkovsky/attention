@@ -17,8 +17,8 @@ for d in $VIDEOS/*/; do
 done
 echo "$latest"
 
-# Concert figures to video
-ffmpeg -r 30 -i $VIDEOS/0_%03d.png -c:v libx264 -pix_fmt yuv420p $latest/graphs.mp4 && rm $VIDEOS/0_*.png
+# Convert figures to video
+ffmpeg -r 48 -i $VIDEOS/0_%03d.png -c:v libx264 -pix_fmt yuv420p $latest/graphs.mp4 && rm $VIDEOS/0_*.png
 
 # Concatenate final video
 ffmpeg -i "$latest/rl-video-episode-0.mp4" -i $latest/graphs.mp4 \
